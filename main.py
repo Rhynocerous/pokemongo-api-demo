@@ -8,6 +8,7 @@ import argparse
 import pokemon_pb2
 import time
 import collections
+from auth_google import AuthGoogle
 from collections import namedtuple
 
 from google.protobuf.internal import encoder
@@ -45,13 +46,16 @@ class Friend:
         
 with open('rares.txt') as f:
         RARE_LIST = [line.rstrip('\n') for line in f]
-SKIP_LIST = ['Pidgey','Rattata','Weedle','Oddish','Caterpie','Spearow','Zubat','Drowzee','Metapod','Pidgeotto','Pidgeot','Kakuna']
+with open('skip.txt') as f:
+        SKIP_LIST = [line.rstrip('\n') for line in f]
+#SKIP_LIST = ['Pidgey','Rattata','Weedle','Oddish','Caterpie','Spearow','Zubat','Drowzee','Metapod','Pidgeotto','Pidgeot','Kakuna']
 MAP_LIST = ['Golduck','Aerodactyl','Alakazam','Arbok','Arcanine','Articuno','Blastoise','Chansey','Charizard','Charmeleon','Clefable','Dewgong','Ditto','Dodrio','Dragonair','Dragonite','Dratini','Dugtrio','Electrode','Exeggutor','Farfetchd','Gengar','Golduck','Golem','Gyarados','Haunter','Ivysaur','Kabuto','Kabutops','Kadabra','Kangaskhan','Koffing','Lapras','Lickitung','Machamp','Magmar','Magneton','Marowak','Mew','Mewtwo','Moltres','Mr. Mime','Muk','Nidoking','Nidoqueen','Nidorino','Ninetales','Omanyte','Omastar','Persian','Poliwrath','Porygon','Primeape','Rapidash','Rhydon','Sandslash','Slowbro','Snorlax','Tangela','Venusaur','Victreebel','Vileplume','Wartortle','Weezing','Wigglytuff','Zapdos']
 HOT_LIST = ['Aerodactyl','Alakazam','Arbok','Arcanine','Articuno','Blastoise','Chansey','Charizard','Clefable','Dewgong','Ditto','Dodrio','Dragonair','Dragonite','Dratini','Dugtrio','Electrode','Exeggutor','Farfetchd','Gengar','Golem','Gyarados','Kabutops','Kangaskhan','Lapras','Lickitung','Machamp','Magmar','Magneton','Marowak','Mew','Mewtwo','Moltres','Mr. Mime','Muk','Nidoking','Nidoqueen','Ninetales','Omastar','Persian','Poliwrath','Porygon','Primeape','Rapidash','Rhydon','Sandslash','Slowbro','Snorlax','Tangela','Venusaur','Victreebel','Vileplume','Wartortle','Weezing','Wigglytuff','Zapdos']
 
 STEPS_BETWEEN_UPDATES = 3
 
 from ast import literal_eval
+
 def get_list(filename):
     wants = []
     with open(filename) as f:
@@ -128,14 +132,6 @@ class Map(object):
                 infowindow{ind}.open(map, marker{ind});
                 }});""".format(lat=x.coords[0], lon=x.coords[1],image=x.image,ind=ind,time=x.vanish_time,static_flag=x.static_flag) for ind, x in enumerate(self._points)
             ])
-        raresCode = "\n".join(
-            [ """new google.maps.Marker({{
-                position: new google.maps.LatLng({lat}, {lon}),
-                map: map,
-                title: '{name}',
-                label: '{init}'
-                }});""".format(lat=x.coords[0], lon=x.coords[1],name=x.name,init=x.name[0]) for x in self._rares
-            ])
         return """
             <meta name="viewport" content="width=device-width">
             <script src="https://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false"></script>
@@ -148,12 +144,11 @@ class Map(object):
                         center: new google.maps.LatLng({centerLat}, {centerLon})
                     }});
                     {markersCode}
-                    {raresCode}
                 }}
                 google.maps.event.addDomListener(window, 'load', show_map);
             </script>
         """.format(centerLat=centerLat, centerLon=centerLon,
-                   markersCode=markersCode, raresCode=raresCode)
+                   markersCode=markersCode)
 
     
 # API
@@ -378,6 +373,9 @@ def main():
 
     while True:
         access_token = login_ptc(args.username, args.password)
+	#l = AuthGoogle()
+	#l.login(args.username,args.password)
+	#access_token = l._auth_token
         if access_token is None:
             print('[-] Wrong username/password')
             return
@@ -481,9 +479,10 @@ def main():
         for poke in visible:
             name = pokemons[poke.pokemon.PokemonId - 1]['Name']
             pid = poke.pokemon.PokemonId
+
             if name in RARE_LIST:
                 map.add_point((poke.Latitude, poke.Longitude),pid,name,poke.TimeTillHiddenMs/1000,'false')
-            else:
+            elif name not in SKIP_LIST:
                 map.add_point((poke.Latitude, poke.Longitude),pid,name,poke.TimeTillHiddenMs/1000,'true')
             
             
@@ -497,11 +496,11 @@ def main():
             if pokemons[poke.pokemon.PokemonId - 1]['Name'] not in SKIP_LIST:    
                 with open("Output.txt", "a") as text_file:
                     text_file.write("{},{},{},{},{}\n".format(name,poke.Latitude,poke.Longitude,poke.TimeTillHiddenMs/1000,time.strftime('%y-%m-%d-%H-%M-%S')))
-            message_alert(pokemons[poke.pokemon.PokemonId - 1]['Name'],poke.Latitude,poke.Longitude,poke.TimeTillHiddenMs/1000)
+            #message_alert(pokemons[poke.pokemon.PokemonId - 1]['Name'],poke.Latitude,poke.Longitude,poke.TimeTillHiddenMs/1000)
 
         count+=1
         if count > STEPS_BETWEEN_UPDATES:
-            with open("pokemap.html", "w") as out:
+            with open("/usr/share/nginx/html/pokemap.html", "w") as out:
                 print(map, file=out)
             # Push changes
 ##            p = Popen("upload.bat")
