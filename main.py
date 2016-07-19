@@ -8,6 +8,7 @@ import argparse
 import pokemon_pb2
 import time
 import collections
+from collections import namedtuple
 
 from google.protobuf.internal import encoder
 
@@ -41,10 +42,14 @@ class Friend:
     def __init__(self,name,wanted):
         self.name = name
         self.wanted = wanted
-      
-SKIP_LIST = ['Pidgey','Rattata','Weedle','Oddish','Caterpie','Spearow','Zubat','Drowzee','Metapod','Pidgeotto','Pidgeot','Kakuna','Eevee']
+        
+with open('rares.txt') as f:
+        RARE_LIST = [line.rstrip('\n') for line in f]
+SKIP_LIST = ['Pidgey','Rattata','Weedle','Oddish','Caterpie','Spearow','Zubat','Drowzee','Metapod','Pidgeotto','Pidgeot','Kakuna']
 MAP_LIST = ['Golduck','Aerodactyl','Alakazam','Arbok','Arcanine','Articuno','Blastoise','Chansey','Charizard','Charmeleon','Clefable','Dewgong','Ditto','Dodrio','Dragonair','Dragonite','Dratini','Dugtrio','Electrode','Exeggutor','Farfetchd','Gengar','Golduck','Golem','Gyarados','Haunter','Ivysaur','Kabuto','Kabutops','Kadabra','Kangaskhan','Koffing','Lapras','Lickitung','Machamp','Magmar','Magneton','Marowak','Mew','Mewtwo','Moltres','Mr. Mime','Muk','Nidoking','Nidoqueen','Nidorino','Ninetales','Omanyte','Omastar','Persian','Poliwrath','Porygon','Primeape','Rapidash','Rhydon','Sandslash','Slowbro','Snorlax','Tangela','Venusaur','Victreebel','Vileplume','Wartortle','Weezing','Wigglytuff','Zapdos']
 HOT_LIST = ['Aerodactyl','Alakazam','Arbok','Arcanine','Articuno','Blastoise','Chansey','Charizard','Clefable','Dewgong','Ditto','Dodrio','Dragonair','Dragonite','Dratini','Dugtrio','Electrode','Exeggutor','Farfetchd','Gengar','Golem','Gyarados','Kabutops','Kangaskhan','Lapras','Lickitung','Machamp','Magmar','Magneton','Marowak','Mew','Mewtwo','Moltres','Mr. Mime','Muk','Nidoking','Nidoqueen','Ninetales','Omastar','Persian','Poliwrath','Porygon','Primeape','Rapidash','Rhydon','Sandslash','Slowbro','Snorlax','Tangela','Venusaur','Victreebel','Vileplume','Wartortle','Weezing','Wigglytuff','Zapdos']
+
+STEPS_BETWEEN_UPDATES = 3
 
 from ast import literal_eval
 def get_list(filename):
@@ -62,63 +67,105 @@ import fbchat
 from pyshorteners import Shortener
 
 friends = []
-url_api_key = 'none'    
+url_api_key = '	AIzaSyAFXMkQE5IQcfZLiqcryzwQoRNyJwA4XFk'    
 
 # Facebook Information
-FB_USERNAME = "none"
-FB_PASSWORD = "none"
-
-# Add friends to notifier
-friends.append(Friend("friendsname",get_list('wantlist.txt')))
-
+##FB_USERNAME = "FBU"
+##FB_PASSWORD = "FBP"
+##
+##friends.append(Friend("unique url",get_list('wantlist.txt')))
 
 
-while 1:
-    try:
-        client = fbchat.Client(FB_USERNAME, FB_PASSWORD)
-        break
-    except:
-        continue
+
+
+##while 1:
+##    try:
+##        client = fbchat.Client(FB_USERNAME, FB_PASSWORD)
+##        break
+##    except:
+##        continue
     
-def message_alert(name,lat,lon,dur):
-    for friend in friends:
-        if name in friend.wanted:
-            friend_search = client.getUsers(friend.name)
-            f = friend_search[0]
-            message = '{} found, appearing for {}s at https://www.google.com/maps/place/{},{}'.format(name,dur,lat,lon)
-            sent = client.send(f.uid,message)
-    
+##def message_alert(name,lat,lon,dur):
+##    for friend in friends:
+##        if name in friend.wanted:
+##            friend_search = client.getUsers(friend.name)
+##            f = friend_search[0]
+##            message = '{} found, appearing for {}s at https://www.google.com/maps/place/{},{}'.format(name,dur,lat,lon)
+##            sent = client.send(f.uid,message)
 
+
+
+# Map stuff
+from subprocess import Popen
+
+poke = namedtuple("LabelStruct", ["coords","name","image","vanish_time","vanish_epoch","static_flag"])
 class Map(object):
-    def __init__(self):
+    def __init__(self,lat,lon):
         self._points = []
-    def add_point(self, coordinates):
-        self._points.append(coordinates)
+        self._rares = []
+        self.centerLat = lat
+        self.centerLon = lon
+    def add_point(self, coordinates, num, name, time_left,static_flag):
+        image = 'http://sprites.pokecheck.org/i/'+str(num).zfill(3)+ '.gif'
+        #image = 'http://www.pokestadium.com/sprites/black-white/' + str(name).lower() + '.png'
+        #image = 'http://www.serebii.net/pokedex-xy/icon/' + str(num).zfill(3) + '.png'
+        vanish_time = time.strftime("%I:%M:%S %p",time.localtime(time.time()+time_left))
+        vanish_epoch = time.time()+time_left
+        self._points.append(poke(coordinates,'none',image,vanish_time,vanish_epoch,static_flag))
+    def add_rare(self, coordinates, name, num):
+        self._rares.append(poke(coordinates,name,'none',0))
+    def cleanup(self):
+        self._points = [i for i in self._points if i.vanish_epoch > time.time()]
+    
     def __str__(self):
-        centerLat = sum(( x[0] for x in self._points )) / len(self._points)
-        centerLon = sum(( x[1] for x in self._points )) / len(self._points)
+
+        self.cleanup()
+        centerLat = self.centerLat
+        centerLon = self.centerLon
+        
         markersCode = "\n".join(
+            [ """var marker{ind} = new google.maps.Marker({{
+                position: new google.maps.LatLng({lat}, {lon}),
+                map: map,
+                icon: '{image}',
+                optimized:{static_flag},
+                size: new google.maps.Size(300,300)
+                }});
+                var infowindow{ind} = new google.maps.InfoWindow({{
+                content: 'Leaving at {time}'
+                }});
+                marker{ind}.addListener('click',function() {{
+                infowindow{ind}.open(map, marker{ind});
+                }});""".format(lat=x.coords[0], lon=x.coords[1],image=x.image,ind=ind,time=x.vanish_time,static_flag=x.static_flag) for ind, x in enumerate(self._points)
+            ])
+        raresCode = "\n".join(
             [ """new google.maps.Marker({{
                 position: new google.maps.LatLng({lat}, {lon}),
-                map: map
-                }});""".format(lat=x[0], lon=x[1]) for x in self._points
+                map: map,
+                title: '{name}',
+                label: '{init}'
+                }});""".format(lat=x.coords[0], lon=x.coords[1],name=x.name,init=x.name[0]) for x in self._rares
             ])
         return """
+            <meta name="viewport" content="width=device-width">
             <script src="https://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false"></script>
             <div id="map-canvas" style="height: 100%; width: 100%"></div>
             <script type="text/javascript">
                 var map;
                 function show_map() {{
                     map = new google.maps.Map(document.getElementById("map-canvas"), {{
-                        zoom: 8,
+                        zoom: 16,
                         center: new google.maps.LatLng({centerLat}, {centerLon})
                     }});
                     {markersCode}
+                    {raresCode}
                 }}
                 google.maps.event.addDomListener(window, 'load', show_map);
             </script>
         """.format(centerLat=centerLat, centerLon=centerLon,
-                   markersCode=markersCode)  
+                   markersCode=markersCode, raresCode=raresCode)
+
+    
 # End Added
 
 API_URL = 'https://pgorelease.nianticlabs.com/plfe/rpc'
@@ -384,15 +431,9 @@ def main():
     origin = LatLng.from_degrees(FLOAT_LAT, FLOAT_LONG)
     # ADDED
     URL = 'https://maps.googleapis.com/maps/api/staticmap?center='+str(FLOAT_LAT)+','+str(FLOAT_LONG) + '&zoom=14&size=1000x1000'
-    count = 4
-    map = Map()
+    count = 8
+    map = Map(FLOAT_LAT,FLOAT_LONG)
 
-
-            
-        
-            
-    
-    
     # END ADDED
     while True:
         original_lat = FLOAT_LAT
@@ -449,14 +490,17 @@ def main():
 
         #Added
         print('')
-        URL+= '&markers=color:blue|' + str(FLOAT_LAT) + ',' + str(FLOAT_LONG)
-        
+        #URL+= '&markers=color:blue|' + str(FLOAT_LAT) + ',' + str(FLOAT_LONG)
         #webbrowser.open(URL)
         for poke in visible:
             name = pokemons[poke.pokemon.PokemonId - 1]['Name']
-            #map.add_point((poke.Latitude, poke.Longitude))
-            #with open("output.html", "w") as out:
-            #    print(map, file=out)
+            pid = poke.pokemon.PokemonId
+            if name in RARE_LIST:
+                map.add_point((poke.Latitude, poke.Longitude),pid,name,poke.TimeTillHiddenMs/1000,'false')
+            else:
+                map.add_point((poke.Latitude, poke.Longitude),pid,name,poke.TimeTillHiddenMs/1000,'true')
+            
+            
             if pokemons[poke.pokemon.PokemonId - 1]['Name'] in MAP_LIST:
                 key = name[0][0]
                 URL+= '&markers=color:red|label:' + key + '|' + str(poke.Latitude) + ',' + str(poke.Longitude)
@@ -465,8 +509,18 @@ def main():
                 #webbrowser.open(URL)
             if pokemons[poke.pokemon.PokemonId - 1]['Name'] not in SKIP_LIST:    
                 with open("Output.txt", "a") as text_file:
-                    text_file.write("{},{},{},{}\n".format(name,poke.Latitude,poke.Longitude,poke.TimeTillHiddenMs/1000))
+                    text_file.write("{},{},{},{},{}\n".format(name,poke.Latitude,poke.Longitude,poke.TimeTillHiddenMs/1000,time.strftime('%y-%m-%d-%H-%M-%S')))
             message_alert(pokemons[poke.pokemon.PokemonId - 1]['Name'],poke.Latitude,poke.Longitude,poke.TimeTillHiddenMs/1000)
+
+        count+=1
+        if count > STEPS_BETWEEN_UPDATES:
+            with open("pokemap.html", "w") as out:
+                print(map, file=out)
+##            p = Popen("upload.bat")
+##            stdout, stderr = p.communicate()
+            #print(stdout)
+            #print(stderr)
+            count=0
 
 
         #try:
