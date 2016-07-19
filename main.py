@@ -1,5 +1,5 @@
 
-from __future__ import print_function  # ADDED
+from __future__ import print_function
 import requests
 import re
 import struct
@@ -67,16 +67,13 @@ import fbchat
 from pyshorteners import Shortener
 
 friends = []
-url_api_key = '	AIzaSyAFXMkQE5IQcfZLiqcryzwQoRNyJwA4XFk'    
+url_api_key = 'key'    
 
-# Facebook Information
+# Facebook Alerts
 ##FB_USERNAME = "FBU"
 ##FB_PASSWORD = "FBP"
 ##
 ##friends.append(Friend("unique url",get_list('wantlist.txt')))
-
-
-
 
 ##while 1:
 ##    try:
@@ -93,16 +90,14 @@ url_api_key = '	AIzaSyAFXMkQE5IQcfZLiqcryzwQoRNyJwA4XFk'
 ##            message = '{} found, appearing for {}s at https://www.google.com/maps/place/{},{}'.format(name,dur,lat,lon)
 ##            sent = client.send(f.uid,message)
 
+# Map Generation
 
-
-# Map stuff
 from subprocess import Popen
 
 poke = namedtuple("LabelStruct", ["coords","name","image","vanish_time","vanish_epoch","static_flag"])
 class Map(object):
     def __init__(self,lat,lon):
         self._points = []
-        self._rares = []
         self.centerLat = lat
         self.centerLon = lon
     def add_point(self, coordinates, num, name, time_left,static_flag):
@@ -112,17 +107,12 @@ class Map(object):
         vanish_time = time.strftime("%I:%M:%S %p",time.localtime(time.time()+time_left))
         vanish_epoch = time.time()+time_left
         self._points.append(poke(coordinates,'none',image,vanish_time,vanish_epoch,static_flag))
-    def add_rare(self, coordinates, name, num):
-        self._rares.append(poke(coordinates,name,'none',0))
     def cleanup(self):
         self._points = [i for i in self._points if i.vanish_epoch > time.time()]
-    
     def __str__(self):
-
         self.cleanup()
         centerLat = self.centerLat
-        centerLon = self.centerLon
-        
+        centerLon = self.centerLon        
         markersCode = "\n".join(
             [ """var marker{ind} = new google.maps.Marker({{
                 position: new google.maps.LatLng({lat}, {lon}),
@@ -166,18 +156,15 @@ class Map(object):
                    markersCode=markersCode, raresCode=raresCode)
 
     
-# End Added
-
+# API
 API_URL = 'https://pgorelease.nianticlabs.com/plfe/rpc'
 LOGIN_URL = 'https://sso.pokemon.com/sso/login?service=https%3A%2F%2Fsso.pokemon.com%2Fsso%2Foauth2.0%2FcallbackAuthorize'
 LOGIN_OAUTH = 'https://sso.pokemon.com/sso/oauth2.0/accessToken'
-
 SESSION = requests.session()
 SESSION.headers.update({'User-Agent': 'Niantic App'})
 SESSION.verify = False
-
 DEBUG = False
-COORDS_LATITUDE = 0
+COORDS_LATITUDE = 0 # Can clean this up
 COORDS_LONGITUDE = 0
 COORDS_ALTITUDE = 0
 FLOAT_LAT = 0
@@ -294,7 +281,6 @@ def get_api_endpoint(access_token, api = API_URL):
     except:
         return None
 
-
 def login_ptc(username, password):
     print('[!] login for: {}'.format(username))
     head = {'User-Agent': 'niantic'}
@@ -390,10 +376,6 @@ def main():
     else:
         set_location(args.location)
 
-    
-
-
-
     while True:
         access_token = login_ptc(args.username, args.password)
         if access_token is None:
@@ -429,12 +411,14 @@ def main():
             continue
 
     origin = LatLng.from_degrees(FLOAT_LAT, FLOAT_LONG)
-    # ADDED
+
+    # For Google Maps Static API
     URL = 'https://maps.googleapis.com/maps/api/staticmap?center='+str(FLOAT_LAT)+','+str(FLOAT_LONG) + '&zoom=14&size=1000x1000'
-    count = 8
+    count = 1
+
+    # Initialize a fresh map
     map = Map(FLOAT_LAT,FLOAT_LONG)
 
-    # END ADDED
     while True:
         original_lat = FLOAT_LAT
         original_long = FLOAT_LONG
@@ -490,8 +474,10 @@ def main():
 
         #Added
         print('')
+
+        # Map search points for extra monitoring
         #URL+= '&markers=color:blue|' + str(FLOAT_LAT) + ',' + str(FLOAT_LONG)
-        #webbrowser.open(URL)
+        
         for poke in visible:
             name = pokemons[poke.pokemon.PokemonId - 1]['Name']
             pid = poke.pokemon.PokemonId
@@ -505,7 +491,8 @@ def main():
                 key = name[0][0]
                 URL+= '&markers=color:red|label:' + key + '|' + str(poke.Latitude) + ',' + str(poke.Longitude)
                 print('Found a {}'.format(name))
-                shortener = Shortener('Google', url_api_key=url_api_key)
+                # Popup map image
+                #shortener = Shortener('Google', url_api_key=url_api_key)
                 #webbrowser.open(URL)
             if pokemons[poke.pokemon.PokemonId - 1]['Name'] not in SKIP_LIST:    
                 with open("Output.txt", "a") as text_file:
@@ -516,12 +503,12 @@ def main():
         if count > STEPS_BETWEEN_UPDATES:
             with open("pokemap.html", "w") as out:
                 print(map, file=out)
+            # Push changes
 ##            p = Popen("upload.bat")
 ##            stdout, stderr = p.communicate()
             #print(stdout)
             #print(stderr)
             count=0
-
 
         #try:
         #    print str(format(shortener.short(URL)))
