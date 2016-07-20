@@ -8,7 +8,7 @@ import argparse
 import pokemon_pb2
 import time
 import collections
-from auth_google import AuthGoogle
+#from auth_google import AuthGoogle
 from collections import namedtuple
 
 from google.protobuf.internal import encoder
@@ -46,11 +46,18 @@ class Friend:
         
 with open('rares.txt') as f:
         RARE_LIST = [line.rstrip('\n') for line in f]
+        
 with open('skip.txt') as f:
         SKIP_LIST = [line.rstrip('\n') for line in f]
+print(RARE_LIST)
+print(SKIP_LIST)
+
+exit
+
 #SKIP_LIST = ['Pidgey','Rattata','Weedle','Oddish','Caterpie','Spearow','Zubat','Drowzee','Metapod','Pidgeotto','Pidgeot','Kakuna']
 MAP_LIST = ['Golduck','Aerodactyl','Alakazam','Arbok','Arcanine','Articuno','Blastoise','Chansey','Charizard','Charmeleon','Clefable','Dewgong','Ditto','Dodrio','Dragonair','Dragonite','Dratini','Dugtrio','Electrode','Exeggutor','Farfetchd','Gengar','Golduck','Golem','Gyarados','Haunter','Ivysaur','Kabuto','Kabutops','Kadabra','Kangaskhan','Koffing','Lapras','Lickitung','Machamp','Magmar','Magneton','Marowak','Mew','Mewtwo','Moltres','Mr. Mime','Muk','Nidoking','Nidoqueen','Nidorino','Ninetales','Omanyte','Omastar','Persian','Poliwrath','Porygon','Primeape','Rapidash','Rhydon','Sandslash','Slowbro','Snorlax','Tangela','Venusaur','Victreebel','Vileplume','Wartortle','Weezing','Wigglytuff','Zapdos']
 HOT_LIST = ['Aerodactyl','Alakazam','Arbok','Arcanine','Articuno','Blastoise','Chansey','Charizard','Clefable','Dewgong','Ditto','Dodrio','Dragonair','Dragonite','Dratini','Dugtrio','Electrode','Exeggutor','Farfetchd','Gengar','Golem','Gyarados','Kabutops','Kangaskhan','Lapras','Lickitung','Machamp','Magmar','Magneton','Marowak','Mew','Mewtwo','Moltres','Mr. Mime','Muk','Nidoking','Nidoqueen','Ninetales','Omastar','Persian','Poliwrath','Porygon','Primeape','Rapidash','Rhydon','Sandslash','Slowbro','Snorlax','Tangela','Venusaur','Victreebel','Vileplume','Wartortle','Weezing','Wigglytuff','Zapdos']
+STATIC_LIST = ['Pidgey','Rattata','Weedle','Oddish','Caterpie','Spearow','Zubat','Drowzee','Metapod','Pidgeotto','Pidgeot','Kakuna']
 
 STEPS_BETWEEN_UPDATES = 3
 
@@ -480,10 +487,12 @@ def main():
             name = pokemons[poke.pokemon.PokemonId - 1]['Name']
             pid = poke.pokemon.PokemonId
 
-            if name in RARE_LIST:
-                map.add_point((poke.Latitude, poke.Longitude),pid,name,poke.TimeTillHiddenMs/1000,'false')
-            elif name not in SKIP_LIST:
+            if name in STATIC_LIST:
                 map.add_point((poke.Latitude, poke.Longitude),pid,name,poke.TimeTillHiddenMs/1000,'true')
+                print('rare')
+            elif name not in SKIP_LIST:
+                map.add_point((poke.Latitude, poke.Longitude),pid,name,poke.TimeTillHiddenMs/1000,'false')
+                print('nonrare')
             
             
             if pokemons[poke.pokemon.PokemonId - 1]['Name'] in MAP_LIST:
@@ -500,7 +509,7 @@ def main():
 
         count+=1
         if count > STEPS_BETWEEN_UPDATES:
-            with open("/usr/share/nginx/html/pokemap.html", "w") as out:
+            with open("pokemap.html", "w") as out:
                 print(map, file=out)
             # Push changes
 ##            p = Popen("upload.bat")
