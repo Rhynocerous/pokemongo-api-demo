@@ -1,11 +1,13 @@
 # Pokemon Go Area Coverage Test with Facebook alerts
 
 * Requires facebook username and password and Pokemon Trainer Club username and password
-* Generates an HTML file while I look for hosting
-* 
+* Generates an HTML file for simple hosting
 
 ## Usage
 python main.py -u PTC_USERNAME -p PTC_PASSWORD -c "coordinates.txt"
+
+SKIP_LIST - list of pokemon to not log or map
+STATIC_LIST - Pokemon to map but not animate. Helps interested pokes stsand out. 
 
 coordinates.txt contains GPS co-ordinate data in degrees as: 
 lat1,lon1
