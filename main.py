@@ -8,9 +8,9 @@ import argparse
 import pokemon_pb2
 import time
 import collections
-#from auth_google import AuthGoogle
+from auth_google import AuthGoogle
 from collections import namedtuple
-
+from ast import literal_eval
 from google.protobuf.internal import encoder
 
 from datetime import datetime
@@ -18,6 +18,9 @@ from geopy.geocoders import GoogleV3
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 from s2sphere import *
+
+MAPS_API_KEY = 'AIzaSyBjd3Cbnx8WLJPooTaKgxLJA-7qB8_Fsj0'
+
 
 def encode(cellid):
     output = []
@@ -43,31 +46,27 @@ class Friend:
     def __init__(self,name,wanted):
         self.name = name
         self.wanted = wanted
-        
+
+# Move this, call get_list
 with open('rares.txt') as f:
         RARE_LIST = [line.rstrip('\n') for line in f]
-        
+
 with open('skip.txt') as f:
         SKIP_LIST = [line.rstrip('\n') for line in f]
-print(RARE_LIST)
-print(SKIP_LIST)
-
-exit
 
 #SKIP_LIST = ['Pidgey','Rattata','Weedle','Oddish','Caterpie','Spearow','Zubat','Drowzee','Metapod','Pidgeotto','Pidgeot','Kakuna']
 MAP_LIST = ['Golduck','Aerodactyl','Alakazam','Arbok','Arcanine','Articuno','Blastoise','Chansey','Charizard','Charmeleon','Clefable','Dewgong','Ditto','Dodrio','Dragonair','Dragonite','Dratini','Dugtrio','Electrode','Exeggutor','Farfetchd','Gengar','Golduck','Golem','Gyarados','Haunter','Ivysaur','Kabuto','Kabutops','Kadabra','Kangaskhan','Koffing','Lapras','Lickitung','Machamp','Magmar','Magneton','Marowak','Mew','Mewtwo','Moltres','Mr. Mime','Muk','Nidoking','Nidoqueen','Nidorino','Ninetales','Omanyte','Omastar','Persian','Poliwrath','Porygon','Primeape','Rapidash','Rhydon','Sandslash','Slowbro','Snorlax','Tangela','Venusaur','Victreebel','Vileplume','Wartortle','Weezing','Wigglytuff','Zapdos']
-HOT_LIST = ['Aerodactyl','Alakazam','Arbok','Arcanine','Articuno','Blastoise','Chansey','Charizard','Clefable','Dewgong','Ditto','Dodrio','Dragonair','Dragonite','Dratini','Dugtrio','Electrode','Exeggutor','Farfetchd','Gengar','Golem','Gyarados','Kabutops','Kangaskhan','Lapras','Lickitung','Machamp','Magmar','Magneton','Marowak','Mew','Mewtwo','Moltres','Mr. Mime','Muk','Nidoking','Nidoqueen','Ninetales','Omastar','Persian','Poliwrath','Porygon','Primeape','Rapidash','Rhydon','Sandslash','Slowbro','Snorlax','Tangela','Venusaur','Victreebel','Vileplume','Wartortle','Weezing','Wigglytuff','Zapdos']
+RARE_LIST = ['Aerodactyl','Alakazam','Arbok','Arcanine','Articuno','Blastoise','Chansey','Charizard','Clefable','Dewgong','Ditto','Dodrio','Dragonair','Dragonite','Dratini','Dugtrio','Electrode','Exeggutor','Farfetchd','Gengar','Golem','Gyarados','Kabutops','Kangaskhan','Lapras','Lickitung','Machamp','Magmar','Magneton','Marowak','Mew','Mewtwo','Moltres','Mr. Mime','Muk','Nidoking','Nidoqueen','Ninetales','Omastar','Persian','Poliwrath','Porygon','Primeape','Rapidash','Rhydon','Sandslash','Slowbro','Snorlax','Tangela','Venusaur','Victreebel','Vileplume','Wartortle','Weezing','Wigglytuff','Zapdos']
 STATIC_LIST = ['Pidgey','Rattata','Weedle','Oddish','Caterpie','Spearow','Zubat','Drowzee','Metapod','Pidgeotto','Pidgeot','Kakuna']
 
-STEPS_BETWEEN_UPDATES = 3
+STEPS_BETWEEN_UPDATES = 0 # Delay map refresh rate if a slowly populating map isn't desired
 
-from ast import literal_eval
 
 def get_list(filename):
     wants = []
     with open(filename) as f:
         wants = [line.rstrip('\n') for line in f]
-        print(wants)
+        #print(wants)
     return wants
     
 
@@ -111,6 +110,11 @@ class Map(object):
         self._points = []
         self.centerLat = lat
         self.centerLon = lon
+	try:
+	    with open('map_style.txt', 'r') as myfile:
+    	        self.map_style = myfile.read().replace('\n', '')
+	except IOError:
+	   self.map_style = []
     def add_point(self, coordinates, num, name, time_left,static_flag):
         image = 'http://sprites.pokecheck.org/i/'+str(num).zfill(3)+ '.gif'
         #image = 'http://www.pokestadium.com/sprites/black-white/' + str(name).lower() + '.png'
@@ -141,23 +145,30 @@ class Map(object):
             ])
         return """
             <meta name="viewport" content="width=device-width">
-            <script src="https://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false"></script>
+            <script src="https://maps.googleapis.com/maps/api/js?v=3.exp&key={MAPS_API_KEY}"></script>
             <div id="map-canvas" style="height: 100%; width: 100%"></div>
             <script type="text/javascript">
-                var map;
                 function show_map() {{
                     map = new google.maps.Map(document.getElementById("map-canvas"), {{
                         zoom: 16,
                         center: new google.maps.LatLng({centerLat}, {centerLon})
                     }});
+                    var map;
+		    var styles={style}
+		    map.setOptions({{styles: styles}});
                     {markersCode}
                 }}
                 google.maps.event.addDomListener(window, 'load', show_map);
             </script>
         """.format(centerLat=centerLat, centerLon=centerLon,
-                   markersCode=markersCode)
+                   markersCode=markersCode,MAPS_API_KEY = MAPS_API_KEY,style=self.map_style)
 
-    
+# Print a test map to test javascript and style
+#map = Map(43.133197, -77.661580)    
+#with open("test.html", "w") as out:
+#    print(map, file=out)
+
+
 # API
 API_URL = 'https://pgorelease.nianticlabs.com/plfe/rpc'
 LOGIN_URL = 'https://sso.pokemon.com/sso/login?service=https%3A%2F%2Fsso.pokemon.com%2Fsso%2Foauth2.0%2FcallbackAuthorize'
@@ -351,6 +362,33 @@ def heartbeat(api_endpoint, access_token, response):
     heartbeat.ParseFromString(payload)
     return heartbeat
 
+# Re-add sslwrap to Python 2.7.9
+import inspect
+__ssl__ = __import__('ssl')
+
+try:
+    _ssl = __ssl__._ssl
+except AttributeError:
+    _ssl = __ssl__._ssl2
+
+
+def new_sslwrap(sock, server_side=False, keyfile=None, certfile=None, cert_reqs=__ssl__.CERT_NONE, ssl_version=__ssl__.PROTOCOL_SSLv23, ca_certs=None, ciphers=None):
+    context = __ssl__.SSLContext(ssl_version)
+    context.verify_mode = cert_reqs or __ssl__.CERT_NONE
+    if ca_certs:
+        context.load_verify_locations(ca_certs)
+    if certfile:
+        context.load_cert_chain(certfile, keyfile)
+    if ciphers:
+        context.set_ciphers(ciphers)
+
+    caller_self = inspect.currentframe().f_back.f_locals['self']
+    return context._wrap_socket(sock, server_side=server_side, ssl_sock=caller_self)
+
+if not hasattr(_ssl, 'sslwrap'):
+    _ssl.sslwrap = new_sslwrap
+# END SSL FIX
+
 def main():
     pokemons = json.load(open('pokemon.json'))
     parser = argparse.ArgumentParser()
@@ -379,7 +417,11 @@ def main():
         set_location(args.location)
 
     while True:
-        access_token = login_ptc(args.username, args.password)
+	try:
+            access_token = login_ptc(args.username, args.password)
+	except ValueError:
+	    time.sleep(5)
+	    continue
 	#l = AuthGoogle()
 	#l.login(args.username,args.password)
 	#access_token = l._auth_token
@@ -391,7 +433,8 @@ def main():
         api_endpoint = get_api_endpoint(access_token)
         if api_endpoint is None:
             print('[-] RPC server offline')
-            return
+	    time.sleep(5)
+            continue # Try to log in again
         print('[+] Received API endpoint: {}'.format(api_endpoint))
 
         response = get_profile(access_token, api_endpoint, None)
@@ -453,7 +496,7 @@ def main():
                         visible.append(wild)
                         seen.add(hash)
 
-        print('')
+        #print('')
         for cell in h.cells:
             if cell.NearbyPokemon:
                 other = LatLng.from_point(Cell(CellId(cell.S2CellId)).get_center())
@@ -462,9 +505,9 @@ def main():
                 difflat = diff.lat().degrees
                 difflng = diff.lng().degrees
                 direction = (('N' if difflat >= 0 else 'S') if abs(difflat) > 1e-4 else '')  + (('E' if difflng >= 0 else 'W') if abs(difflng) > 1e-4 else '')
-                print("Within one step of %s (%sm %s from you):" % (other, int(origin.get_distance(other).radians * 6366468.241830914), direction))
-                for poke in cell.NearbyPokemon:
-                    print('    (%s) %s' % (poke.PokedexNumber, pokemons[poke.PokedexNumber - 1]['Name']))
+                #print("Within one step of %s (%sm %s from you):" % (other, int(origin.get_distance(other).radians * 6366468.241830914), direction))
+                #for poke in cell.NearbyPokemon:
+                #    print('    (%s) %s' % (poke.PokedexNumber, pokemons[poke.PokedexNumber - 1]['Name']))
 
         #print('')
         for poke in visible:
@@ -475,10 +518,10 @@ def main():
             difflng = diff.lng().degrees
             direction = (('N' if difflat >= 0 else 'S') if abs(difflat) > 1e-4 else '')  + (('E' if difflng >= 0 else 'W') if abs(difflng) > 1e-4 else '')
 
-            print("(%s) %s is visible at (%s, %s) for %s seconds (%sm %s from you)" % (poke.pokemon.PokemonId, pokemons[poke.pokemon.PokemonId - 1]['Name'], poke.Latitude, poke.Longitude, poke.TimeTillHiddenMs / 1000, int(origin.get_distance(other).radians * 6366468.241830914), direction))
+            #print("(%s) %s is visible at (%s, %s) for %s seconds (%sm %s from you)" % (poke.pokemon.PokemonId, pokemons[poke.pokemon.PokemonId - 1]['Name'], poke.Latitude, poke.Longitude, poke.TimeTillHiddenMs / 1000, int(origin.get_distance(other).radians * 6366468.241830914), direction))
 
         #Added
-        print('')
+        #print('')
 
         # Map search points for extra monitoring
         #URL+= '&markers=color:blue|' + str(FLOAT_LAT) + ',' + str(FLOAT_LONG)
@@ -489,27 +532,25 @@ def main():
 
             if name in STATIC_LIST:
                 map.add_point((poke.Latitude, poke.Longitude),pid,name,poke.TimeTillHiddenMs/1000,'true')
-                print('rare')
             elif name not in SKIP_LIST:
                 map.add_point((poke.Latitude, poke.Longitude),pid,name,poke.TimeTillHiddenMs/1000,'false')
-                print('nonrare')
             
             
             if pokemons[poke.pokemon.PokemonId - 1]['Name'] in MAP_LIST:
                 key = name[0][0]
-                URL+= '&markers=color:red|label:' + key + '|' + str(poke.Latitude) + ',' + str(poke.Longitude)
-                print('Found a {}'.format(name))
+                #URL+= '&markers=color:red|label:' + key + '|' + str(poke.Latitude) + ',' + str(poke.Longitude)
+                #print('Found a {}'.format(name))
                 # Popup map image
                 #shortener = Shortener('Google', url_api_key=url_api_key)
                 #webbrowser.open(URL)
             if pokemons[poke.pokemon.PokemonId - 1]['Name'] not in SKIP_LIST:    
-                with open("Output.txt", "a") as text_file:
+                with open("output"+args.coords.split(".")[0]+".txt", "a") as text_file:
                     text_file.write("{},{},{},{},{}\n".format(name,poke.Latitude,poke.Longitude,poke.TimeTillHiddenMs/1000,time.strftime('%y-%m-%d-%H-%M-%S')))
             #message_alert(pokemons[poke.pokemon.PokemonId - 1]['Name'],poke.Latitude,poke.Longitude,poke.TimeTillHiddenMs/1000)
 
         count+=1
         if count > STEPS_BETWEEN_UPDATES:
-            with open("pokemap.html", "w") as out:
+            with open("/usr/share/nginx/html/"+args.coords.split(".")[0]+".html", "w") as out:
                 print(map, file=out)
             # Push changes
 ##            p = Popen("upload.bat")
@@ -523,7 +564,7 @@ def main():
         #except:
         #    pass
 
-        #print('')
+        #Search algorithm or specified search pattern
         walk = getNeighbors()
         if args.coords is "none":
             next = LatLng.from_point(Cell(CellId(walk[4])).get_center())
