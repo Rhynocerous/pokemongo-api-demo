@@ -17,12 +17,16 @@ class Map(object):
         self.api = inputs['maps_api_key']
         try:
             self.map_style = inputs['map_style']
-        except NameError:
+        except KeyError:
             self.map_style = []
         try:
             self.style = int(inputs['sprite_style'])
-        except NameError:
+        except KeyError:
             self.style = 1
+        try:
+            self.domain = inputs['domain_name']
+        except KeyError:
+            self.domain = 'git.io/vKynk'
     def add_point(self, coordinates, num, name, time_left,static_flag):
         if self.style == 2:
             image = 'http://www.pkparaiso.com/imagenes/xy/sprites/animados/' + name.lower() + '.gif'
@@ -56,15 +60,15 @@ class Map(object):
             ])
         floatboxCode = "\n".join([ """
                 <style>
-                   #wrapper { position: relative; }
-                   #over_map { position: fixed; bottom: 0; left: 0; z-index: 99;  border: 2px solid #4d7a1f; background: white; padding: 5px 5px 5px 5px; line-height:20px; height=50px; margin:0; text-align: center;font-size:x-small; font-family:Verdana, Geneva, sans-serif;
+                   #wrapper {{ position: relative; }}
+                   #over_map {{ position: fixed; bottom: 0; left: 0; z-index: 99;  border: 2px solid #4d7a1f; background: white; padding: 5px 5px 5px 5px; line-height:20px; height=50px; margin:0; text-align: center;font-size:x-small; font-family:Verdana, Geneva, sans-serif;}}
                 </style>
 
                 <div id="over_map">
                 Refresh page to update<br>
-                <a href = "http://www.rhynocero.us">Info at www.rhynocero.us</a>
+                <a href = "http://{domain}">Info at {domain}</a>
                 </div>
-                """
+                """.format(domain = self.domain)
             ])
         return """
             {floatboxCode}
