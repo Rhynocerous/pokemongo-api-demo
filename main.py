@@ -132,8 +132,6 @@ def main():
         set_location(start_loc)
         start_lat = float(start_loc.split(',')[0])
         start_lon = float(start_loc.split(',')[1])
-        print(start_lat)
-        print(start_lon)
     else:
         print('Finding location based on argument input...')
         geoloc_result = set_location(args.location)
