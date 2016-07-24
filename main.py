@@ -16,6 +16,10 @@ class Map(object):
         self.centerLon = lon
         self.api = inputs['maps_api_key']
         try:
+            self.twilio_inputs = inputs['twilio']
+        except KeyError:
+            self.twilio_inputs = 'none'
+        try:
             self.map_style = inputs['map_style']
         except KeyError:
             self.map_style = []
@@ -39,10 +43,13 @@ class Map(object):
             image = 'http://sprites.pokecheck.org/i/'+str(num).zfill(3)+ '.gif'
         vanish_time = time.strftime("%I:%M:%S %p",time.localtime(time.time()+time_left))
         vanish_epoch = int(time.time()+time_left)
-        self._points.append(poke(coordinates,name,image,vanish_time,vanish_epoch,static_flag))
+        pokemon_info = poke(coordinates,name,image,vanish_time,vanish_epoch,static_flag)
+        if not self.twilio_inputs == 'none':
+            global twil
+            twil.send_messages(pokemon_info,self.twilio_inputs['recipients'])
+        self._points.append(pokemon_info)
     def cleanup(self):
         self._points = [i for i in self._points if i.vanish_epoch > time.time()]
-        print(self._points)
     def __str__(self):
         self.cleanup()
         centerLat = self.centerLat
@@ -95,6 +102,9 @@ class Map(object):
         """.format(centerLat=centerLat, centerLon=centerLon,
                    markersCode=markersCode,MAPS_API_KEY =self.api,style=self.map_style,floatboxCode=floatboxCode)
 
+
+        
+
 def main():
     
     pokemons = json.load(open('pokemon.json'))
@@ -142,6 +152,15 @@ def main():
         start_lat = float(geoloc_result.latitude)
         start_lon = float(geoloc_result.longitude)
 
+    # Handle Twilio
+    try:
+        twilio_params = inputs['twilio']
+        import notifications
+        global twil
+        twil = notifications.Notifications(twilio_params['account_sid'],twilio_params['auth_token'],twilio_params['number'])
+    except KeyError:
+        pass
+
     origin = LatLng.from_degrees(start_lat,start_lon)
 
     while True:
@@ -186,12 +205,9 @@ def main():
             continue
 
     # Initialize a fresh map
-    print(start_lat)
-    print(start_lon)
     map = Map(start_lat,start_lon,inputs)
     while True:
         original_lat,original_long = get_float_coords()
-        print('Searching: {},{}'.format(original_lat,original_long))
         new_coords = get_float_coords()
         parent = CellId.from_lat_lng(LatLng.from_degrees(new_coords[0],new_coords[1])).parent(15)
         try:
@@ -266,7 +282,6 @@ def main():
         else:
             next = LatLng.from_point(Cell(CellId(walk[4])).get_center())
             set_location_coords(next.lat().degrees, next.lng().degrees, 0)
-            print('Nextsearch: {},{}'.format(next.lat().degrees, next.lng().degrees))
 
 if __name__ == '__main__':
     main()
