@@ -43,6 +43,8 @@ class Map(object):
             image = 'http://sprites.pokecheck.org/i/'+str(num).zfill(3)+ '.gif'
         vanish_time = time.strftime("%I:%M:%S %p",time.localtime(time.time()+time_left))
         vanish_epoch = int(time.time()+time_left)
+        if vanish_epoch < time.time():
+            return
         pokemon_info = poke(coordinates,name,image,vanish_time,vanish_epoch,static_flag)
         if not self.twilio_inputs == 'none':
             global twil

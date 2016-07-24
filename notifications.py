@@ -18,8 +18,10 @@ class Notifications:
                 self.send(poke,user['number'])
 
     def send(self,poke,to_num):
-        text = "{n} found until {t}\nhttps://www.google.com/maps/place/{lat},{lon}".format(n=poke.name,
+	try:
+            text = "{n} found until {t}\nhttps://www.google.com/maps/place/{lat},{lon}".format(n=poke.name,
                                                     t=poke.vanish_time,lat = poke.coords[0],lon = poke.coords[1])
-        message = self.client.messages.create(body=text,to=to_num,from_=self.num)
-        print('sending message')
-        temp = message
+            message = self.client.messages.create(body=text,to=to_num,from_=self.num)
+            temp = message
+	except:
+            return
