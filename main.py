@@ -129,11 +129,11 @@ def main():
         except KeyError:
             print('Using first search_coord as map center.')
             start_loc = locs[0]
-        else:
-            start_loc = locs[0]
         set_location(start_loc)
         start_lat = float(start_loc.split(',')[0])
         start_lon = float(start_loc.split(',')[1])
+        print(start_lat)
+        print(start_lon)
     else:
         print('Finding location based on argument input...')
         geoloc_result = set_location(args.location)
@@ -184,6 +184,8 @@ def main():
             continue
 
     # Initialize a fresh map
+    print(start_lat)
+    print(start_lon)
     map = Map(start_lat,start_lon,inputs)
     while True:
         original_lat,original_long = get_float_coords()
