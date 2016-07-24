@@ -92,7 +92,7 @@ class Map(object):
                    markersCode=markersCode,MAPS_API_KEY =self.api,style=self.map_style,floatboxCode=floatboxCode)
 
 def main():
-    inputs = json.load(open('input.json'))
+    
     pokemons = json.load(open('pokemon.json'))
     parser = argparse.ArgumentParser()
     parser.add_argument("-u", "--username", help="PTC Username", required=True)
@@ -100,10 +100,21 @@ def main():
     parser.add_argument("-l", "--location", help="Location", required=False)
     parser.add_argument("-d", "--debug", help="Debug Mode", action='store_true')
     parser.add_argument("-c", "--coords", help="GPS Co-ordinates", required=False)
+    parser.add_argument("-i", "--inputs", help="Input JSON file", required=False)
     parser.set_defaults(DEBUG=False)
     parser.set_defaults(coords="none")
     parser.set_defaults(location="none")
+    parser.set_defaults(inputs="none")
     args = parser.parse_args()
+
+    if args.inputs is "none":
+        inputs = json.load(open('input.json'))
+    else:
+        try:
+            inputs = json.load(open(args.inputs))
+        except IOError as err:
+            print('Could not find input JSON file, remember the file extension -  ',err)
+            return
 
     if args.debug:
         global DEBUG
