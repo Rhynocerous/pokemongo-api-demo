@@ -28,6 +28,9 @@ class Map(object):
         except KeyError:
             self.domain = 'git.io/vKynk'
     def add_point(self, coordinates, num, name, time_left,static_flag):
+        # Don't add pokemon if it's a duplicate (by co-ordinates)
+        if any((coordinates == i.coords and name == i.name) for i in self._points):
+            return
         if self.style == 2:
             image = 'http://www.pkparaiso.com/imagenes/xy/sprites/animados/' + name.lower() + '.gif'
         elif self.style == 3:
@@ -35,10 +38,11 @@ class Map(object):
         else:
             image = 'http://sprites.pokecheck.org/i/'+str(num).zfill(3)+ '.gif'
         vanish_time = time.strftime("%I:%M:%S %p",time.localtime(time.time()+time_left))
-        vanish_epoch = time.time()+time_left
+        vanish_epoch = int(time.time()+time_left)
         self._points.append(poke(coordinates,name,image,vanish_time,vanish_epoch,static_flag))
     def cleanup(self):
         self._points = [i for i in self._points if i.vanish_epoch > time.time()]
+        print(self._points)
     def __str__(self):
         self.cleanup()
         centerLat = self.centerLat
